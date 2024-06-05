@@ -38,6 +38,19 @@ export type RecursiveFeatureEliminationResult =
   | { message: string; selected_names: string[] }
   | { error: string };
 
+// 模型评估结果类型
+export type ModelEvaluationResult =
+  | { mse: number; r2: number; image: string }
+  | { error: string };
+
+/** 模型评估 */
+export const evaluateModel = () => {
+  return http.request<ModelEvaluationResult>(
+    "post",
+    "http://127.0.0.1:5005/parameter_extraction/model_evaluation"
+  );
+};
+
 /** 上传文件 */
 export const uploadLocalFile = (data: FormData) => {
   return http.request<FileUploadResult>(

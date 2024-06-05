@@ -91,42 +91,158 @@
             /></el-icon>
             <div class="section-title">建立随机森林模型</div>
           </div>
+
+          <div class="parameter-input" style="margin-bottom: 20px">
+            <div><p>决策树数量</p></div>
+            <el-input-number
+              v-model="nEstimators"
+              :min="10"
+              :max="1000"
+              label="n_estimators"
+              id="n_estimators"
+            />
+            <el-button type="primary" @click="trainModel">在线训练</el-button>
+          </div>
+
+          <div class="model-selection">
+            <div class="icon-text-container">
+              <span>选择模型</span>
+              <el-button type="primary" @click="confirmModelSelection"
+                >确认</el-button
+              >
+              <el-button type="primary" @click="showModelPerformance"
+                >模型性能展示</el-button
+              >
+            </div>
+            <el-table
+              :data="models"
+              style="width: 100%; margin-top: 10px"
+              @current-change="handleSelectionChange"
+              height="200px"
+            >
+              <el-table-column type="selection" width="55" />
+              <el-table-column prop="name" label="模型名称" />
+            </el-table>
+          </div>
         </div>
       </div>
     </div>
+
     <!-- 右侧部分 -->
     <div class="right">
-      <div class="algorithm-selection">
-        <div class="section-title">关键工艺参数算法选取</div>
-        <div class="algorithm-input">
-          <label for="algorithm">模型：</label>
-          <select id="algorithm">
-            <option value="逐渐消除">逐渐消除</option>
-          </select>
-          <button>确定</button>
+      <div class="model-display">
+        <div class="icon-text-container">
+          <el-icon size="32px" style="margin-top: -10px; color: #2d7dbc"
+            ><SetUp
+          /></el-icon>
+          <div class="section-title">模型性能分析结果</div>
+        </div>
+        <div>
+          <table
+            style="
+              width: 100%;
+              margin-bottom: 20px;
+              text-align: left;
+              border-collapse: collapse;
+            "
+          >
+            <tr style="border-bottom: 1px solid #ccc">
+              <th style="padding: 8px">MSE</th>
+              <th style="padding: 8px">R²</th>
+            </tr>
+            <tr>
+              <td style="padding: 8px">{{ mse !== null ? mse : "..." }}</td>
+              <td style="padding: 8px">{{ r2 !== null ? r2 : "..." }}</td>
+            </tr>
+          </table>
+          <div
+            style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              width: 500px;
+              height: 250px;
+              margin: 0 auto;
+              background-color: #f0f0f0;
+            "
+          >
+            <img
+              v-if="modelImage"
+              :src="'data:image/png;base64,' + modelImage"
+              alt="Model Performance Image"
+              style="width: 100%; height: 100%"
+            />
+            <span v-else />
+          </div>
         </div>
       </div>
-      <div class="result-display">
-        <div class="section-title">数据展示</div>
-        <div class="data-display" />
+
+      <div class="algorithm-selection">
+        <div class="icon-text-container">
+          <el-icon size="32px" style="margin-top: -10px; color: #2d7dbc"
+            ><DataAnalysis
+          /></el-icon>
+          <div class="section-title">关键工艺参数算法选取</div>
+        </div>
+
+        <div class="algorithm-input">
+          <label for="algorithm">请选择模型：</label>
+          <select id="algorithm" v-model="selectedAlgorithm">
+            <option value="内置特征重要性">内置特征重要性</option>
+            <option value="排列特征重要性">排列特征重要性函数</option>
+          </select>
+          <el-button type="primary" @click="handleAlgorithmSelection"
+            >确定</el-button
+          >
+        </div>
+        <div class="table-container-result">
+          <el-table
+            :data="importanceData"
+            style="width: 100%; max-height: 200px; overflow-y: auto"
+          >
+            <el-table-column prop="name" label="属性名" />
+            <el-table-column prop="value" label="数值" />
+          </el-table>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { uploadLocalFile, getFileInfo } from "@/api/correlation"; // 导入上传文件和获取文件信息API
+import { ref, onMounted } from "vue";
+import {
+  uploadLocalFile,
+  getFileInfo,
+  trainRandomForest,
+  listModels,
+  downloadModel,
+  getFeatureImportance,
+  getPermutationImportance,
+  evaluateModel
+} from "@/api/correlation";
 import { ElMessage, ElTable, ElTableColumn } from "element-plus";
 
 const inputFile = ref<File | null>(null);
 const outputFile = ref<File | null>(null);
+const nEstimators = ref(100);
+const models = ref<{ name: string }[]>([]);
+const selectedModel = ref<{ name: string } | null>(null);
+const mse = ref<number | null>(null);
+const r2 = ref<number | null>(null);
+const modelImage = ref<string | null>(null);
+
+// 添加响应式变量
+const selectedAlgorithm = ref("内置特征重要性");
+const importanceData = ref<{ name: string; value: number }[]>([]);
 
 const inputFileInfo = ref<{
   columnCount: number;
   columns: string[];
   dataCount: number;
 } | null>({ columnCount: 0, columns: [], dataCount: 0 });
+
 const outputFileInfo = ref<{
   columnCount: number;
   columns: string[];
@@ -231,6 +347,115 @@ const showOutputFileInfo = () => {
     outputFileInfo.value = info;
   });
 };
+
+const trainModel = async () => {
+  try {
+    const response = await trainRandomForest({
+      input_file: inputFile.value?.name || "",
+      output_file: outputFile.value?.name || "",
+      n_estimators: nEstimators.value
+    });
+    if ("message" in response) {
+      ElMessage.success(response.message);
+      loadModels(); // 训练成功后加载模型列表
+    } else if ("error" in response) {
+      ElMessage.error(response.error);
+    }
+  } catch (error) {
+    ElMessage.error("模型训练失败");
+  }
+};
+
+const loadModels = async () => {
+  try {
+    const response = await listModels();
+    if ("message" in response) {
+      models.value = response.objects.map((obj: string) => ({ name: obj }));
+    } else if ("error" in response) {
+      ElMessage.error(response.error);
+    }
+  } catch (error) {
+    ElMessage.error("获取模型列表失败");
+  }
+};
+
+const confirmModelSelection = async () => {
+  if (!selectedModel.value) {
+    ElMessage.error("请先选择模型");
+    return;
+  }
+  try {
+    const response = await downloadModel({
+      model_name: selectedModel.value.name
+    });
+    if ("message" in response) {
+      ElMessage.success(response.message);
+    } else if ("error" in response) {
+      ElMessage.error(response.error);
+    }
+  } catch (error) {
+    ElMessage.error("下载模型失败");
+  }
+};
+
+const handleSelectionChange = (selection: { name: string }) => {
+  selectedModel.value = selection;
+  console.log(selectedModel.value);
+};
+
+const showModelPerformance = async () => {
+  try {
+    const response = await evaluateModel();
+    if ("mse" in response && "r2" in response && "image" in response) {
+      mse.value = response.mse;
+      r2.value = response.r2;
+      modelImage.value = response.image;
+    } else if ("error" in response) {
+      ElMessage.error(response.error);
+    }
+  } catch (error) {
+    ElMessage.error("获取模型性能分析结果失败");
+  }
+};
+
+const handleAlgorithmSelection = async () => {
+  if (!selectedModel.value) {
+    ElMessage.error("请先选择模型");
+    return;
+  }
+
+  const data = {
+    model_name: selectedModel.value.name,
+    input_file: inputFile.value?.name || "",
+    output_file: outputFile.value?.name || "",
+    number_key_parameters: 10 // 根据需要设置   TODO: 后续可增加参数设置
+  };
+
+  try {
+    let response;
+    if (selectedAlgorithm.value === "内置特征重要性") {
+      response = await getFeatureImportance(data);
+    } else if (selectedAlgorithm.value === "排列特征重要性") {
+      response = await getPermutationImportance(data);
+    }
+
+    if (response && "error" in response) {
+      ElMessage.error(response.error);
+    } else if (response && "message" in response) {
+      ElMessage.success(response.message);
+      const importanceDict =
+        response.feature_importance_dict ||
+        response.permutation_importance_dict;
+      importanceData.value = Object.entries(importanceDict).map(
+        ([name, value]) => ({ name, value: value as number })
+      );
+    }
+  } catch (error) {
+    ElMessage.error("获取特征重要性失败");
+  }
+};
+
+onMounted(loadModels);
 </script>
 
 <style scoped>
@@ -317,19 +542,18 @@ const showOutputFileInfo = () => {
   font-size: 16px; /* 字体大小 */
   color: white; /* 白色文字 */
   cursor: pointer; /* 鼠标悬停时显示为手型 */
-  background-color: #4caf50; /* 绿色背景 */
+  background-color: #409eff; /* 蓝色背景 */
   border: none; /* 无边框 */
   border-radius: 5px; /* 圆角 */
   transition: background-color 0.3s ease; /* 背景颜色过渡效果 */
 }
 
 .file-upload button:hover {
-  background-color: #45a049; /* 悬停时背景颜色变深 */
+  background-color: #79bbff; /* 悬停时背景颜色变深 */
 }
 
-.parameter-setting,
-.algorithm-selection,
-.result-display {
+.model-display,
+.algorithm-selection {
   box-sizing: border-box;
   padding: 10px; /* Reduced padding */
   margin-bottom: 20px; /* Reduced margin */
@@ -371,13 +595,27 @@ const showOutputFileInfo = () => {
   font-size: 12px; /* 字体大小 */
   color: white; /* 白色文字 */
   cursor: pointer; /* 鼠标悬停时显示为手型 */
-  background-color: #4caf50; /* 绿色背景 */
+  background-color: #409eff; /* 蓝色背景 */
   border: none; /* 无边框 */
   border-radius: 5px; /* 圆角 */
   transition: background-color 0.3s ease; /* 背景颜色过渡效果 */
 }
 
 .button-style:hover {
-  background-color: #45a049; /* 悬停时背景颜色变深 */
+  background-color: #79bbff; /* 悬停时背景颜色变深 */
+}
+
+.model-selection {
+  max-height: 300px; /* 设置最大高度 */
+  overflow-y: auto; /* 超出时添加滚动条 */
+}
+
+.table-container-result {
+  height: 180px; /* 固定表格高度 */
+  padding: 10px;
+  overflow-y: auto; /* 超出时添加滚动条 */
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
 }
 </style>
