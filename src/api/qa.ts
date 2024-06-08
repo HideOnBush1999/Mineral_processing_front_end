@@ -1,13 +1,16 @@
 import { http } from "@/utils/http";
 
 // chat
+// export type ChatResult = {
+//   status: string;
+//   chat_history: Array<{
+//     role: string;
+//     content: string;
+//   }>;
+//   content: string;
+// };
 export type ChatResult = {
-  status: string;
-  chat_history: Array<{
-    role: string;
-    content: string;
-  }>;
-  content: string;
+  message: string;
 };
 
 export type ModelActionResult = {

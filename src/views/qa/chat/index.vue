@@ -13,14 +13,36 @@
         <div
           v-for="(message, index) in chatHistory"
           :key="index"
-          class="message"
+          class="message-container"
           :class="{
-            'user-message': message.type === 'user',
-            'system-message': message.type === 'system'
+            'system-stream': message.type === 'system-stream',
+            'system-http': message.type === 'system-http'
           }"
         >
-          <strong>{{ message.type.toUpperCase() }}:</strong>
-          {{ message.content }}
+          <img
+            v-if="message.type === 'user'"
+            src="/src/assets/user.jpg"
+            alt="User Avatar"
+            class="avatar"
+          />
+          <img
+            v-if="message.type === 'system-http'"
+            src="/src/assets/system.jpg"
+            alt="System Avatar"
+            class="avatar"
+          />
+          <div
+            class="message"
+            :class="{
+              'user-message': message.type === 'user',
+              'system-message':
+                message.type === 'system-http' ||
+                message.type === 'system-stream'
+            }"
+          >
+            <strong>{{ message.type === "user" ? "USER" : "SYSTEM" }}:</strong>
+            {{ message.content }}
+          </div>
         </div>
       </div>
       <div class="input-container">
@@ -49,8 +71,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
+import { ref, nextTick, onMounted } from "vue";
 import { chat, createModel, terminateModel } from "@/api/qa";
+import io from "socket.io-client";
+const streamingContent = ref("");
 
 const userInput = ref("");
 const chatHistory = ref([]);
@@ -60,19 +84,75 @@ const isLoading = ref(false);
 const modelActive = ref(false);
 const modelLoading = ref(false);
 
+// WebSocket 连接
+const socket = io("http://127.0.0.1:5005/qa", {
+  transports: ["websocket"]
+});
+
+socket.on("connect", () => {
+  console.log("WebSocket connected");
+});
+
+socket.on("connect_error", error => {
+  console.error("WebSocket connection error:", error);
+});
+
 const sendMessage = async () => {
+  console.log(chatHistory.value);
   if (userInput.value.trim() === "") return;
 
   chatHistory.value.push({ content: userInput.value, type: "user" });
 
   isLoading.value = true;
+  streamingContent.value = ""; // 重置流式内容
 
   try {
     const response = await chat({ prompt: userInput.value });
-    chatHistory.value.push({ content: response.content, type: "system" });
+    chatHistory.value.push({ content: response.message, type: "system-http" });
 
     await nextTick();
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+
+    // 监听 WebSocket 中的 chat_response 事件
+    socket.on("chat_response", (data: { content: string }) => {
+      if (data.content === "#finish#") {
+        // 当前会话结束，后端会发送 #finish#
+        console.log("Chat response complete");
+        socket.off("chat_response"); // 移除 'chat_response' 事件的监听器
+        socket.off("chat_response_complete"); // 移除 'chat_response_complete' 事件的监听器
+      } else {
+        console.log("Chat response:", data.content);
+        streamingContent.value += data.content;
+
+        // 找到最后一个 system-stream 类型的消息并更新它
+        if (
+          chatHistory.value.length > 0 &&
+          chatHistory.value[chatHistory.value.length - 1].type ===
+            "system-stream"
+        ) {
+          chatHistory.value[chatHistory.value.length - 1].content =
+            streamingContent.value;
+        } else {
+          chatHistory.value.push({
+            content: streamingContent.value,
+            type: "system-stream"
+          });
+        }
+      }
+
+      nextTick().then(() => {
+        messagesContainer.value.scrollTop =
+          messagesContainer.value.scrollHeight;
+      });
+    });
+
+    // 监听 WebSocket 中的 chat_response_complete 事件
+    // chat_response_complete 事件只有在后端异常时才会触发
+    socket.on("chat_response_complete", (data: { full_response: string }) => {
+      console.log("Chat response complete:", data.full_response);
+      socket.off("chat_response");
+      socket.off("chat_response_complete");
+    });
   } catch (error) {
     console.error("Error sending message:", error);
   } finally {
@@ -106,6 +186,10 @@ const toggleModel = async () => {
     modelLoading.value = false;
   }
 };
+
+onMounted(() => {
+  messagesContainer.value = document.querySelector(".messages");
+});
 </script>
 
 <style scoped>
@@ -132,12 +216,6 @@ const toggleModel = async () => {
   padding-bottom: 60px; /* 调整这个值以适应输入框的高度 */
 }
 
-/* .messages {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 10px;
-} */
-
 .messages {
   flex-grow: 1;
   height: calc(100vh - 200px); /* 根据实际情况调整 */
@@ -148,21 +226,34 @@ const toggleModel = async () => {
   background-size: 36%; /* 将背景图片缩小到原来的50% */
 }
 
-.message {
-  padding: 5px;
+.message-container {
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 10px;
+}
+
+.message {
+  max-width: 70%;
+  padding: 5px;
   word-wrap: break-word;
   border-radius: 5px;
 }
 
 .user-message {
-  align-self: flex-end;
-  background-color: #f0f0f0;
+  background-color: #add8e6;
 }
 
 .system-message {
-  align-self: flex-start;
-  background-color: #e0e0e0;
+  background-color: #b0e0e6;
+}
+
+.system-stream {
+  justify-content: flex-start;
+  margin-left: 48px;
+}
+
+.system-http {
+  justify-content: flex-start;
 }
 
 .input-container {
@@ -231,5 +322,12 @@ button:hover {
 
 .model-active {
   background-color: #007bff;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  margin-right: 10px;
+  border-radius: 50%;
 }
 </style>
