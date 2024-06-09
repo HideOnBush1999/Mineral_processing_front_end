@@ -150,6 +150,11 @@ export const getRecursiveFeatureElimination = (data: {
 // --------------------------------------------------------------------------------------------
 //  correlation_analysis
 
+// 上传 Excel 文件结果类型
+export type UploadExcelResult =
+  | { message: string; file_path: string }
+  | { error: string; details: string };
+
 // 列出 Excel 文件结果类型
 export type ListExcelResult =
   | { message: string; object_list: string[] }
@@ -171,7 +176,21 @@ export type GrayCorrelationAnalysisResult =
 // 生成图像结果类型
 export type GenerateImageResult = Blob;
 
-// 列出 Excel 文件
+/** 上传 Excel 文件 */
+export const uploadExcel = (data: FormData) => {
+  return http.request<UploadExcelResult>(
+    "post",
+    "http://127.0.0.1:5005/correlation_analysis/upload_excel",
+    {
+      data,
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    }
+  );
+};
+
+/** 列出 Excel 文件 */
 export const listExcel = () => {
   return http.request<ListExcelResult>(
     "get",
@@ -198,7 +217,7 @@ export const grayCorrelationAnalysis = (data: { file: string }) => {
 };
 
 /** 生成图像 */
-export const generateImage = (data: {
+export const generateImageApi = (data: {
   relation_results: { Feature: string; RelationDegree: number }[];
 }) => {
   return http.request<GenerateImageResult>(
