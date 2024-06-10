@@ -117,11 +117,15 @@
             <el-table
               :data="models"
               style="width: 100%; margin-top: 10px"
-              @current-change="handleSelectionChange"
+              @row-click="handleSelectionChange"
               height="200px"
             >
-              <el-table-column type="selection" width="55" />
-              <el-table-column prop="name" label="模型名称" />
+              <!-- <el-table-column type="index" width="50"></el-table-column> -->
+              <el-table-column prop="name" label="模型名称">
+                <template #default="scope">
+                  <el-radio :label="scope.row.name" v-model="selectedModel" />
+                </template>
+              </el-table-column>
             </el-table>
           </div>
         </div>
@@ -228,7 +232,7 @@ const inputFile = ref<File | null>(null);
 const outputFile = ref<File | null>(null);
 const nEstimators = ref(100);
 const models = ref<{ name: string }[]>([]);
-const selectedModel = ref<{ name: string } | null>(null);
+const selectedModel = ref<string | null>(null);
 const mse = ref<number | null>(null);
 const r2 = ref<number | null>(null);
 const modelImage = ref<string | null>(null);
@@ -276,7 +280,7 @@ const uploadInputFile = async () => {
   try {
     const response = await uploadLocalFile(formData);
     if ("message" in response) {
-      ElMessage.success(response.message);
+      ElMessage.success("文件上传成功");
     } else if ("error" in response) {
       ElMessage.error(response.error);
     }
@@ -298,7 +302,7 @@ const uploadOutputFile = async () => {
   try {
     const response = await uploadLocalFile(formData);
     if ("message" in response) {
-      ElMessage.success(response.message);
+      ElMessage.success("文件上传成功");
     } else if ("error" in response) {
       ElMessage.error(response.error);
     }
@@ -386,7 +390,7 @@ const confirmModelSelection = async () => {
   }
   try {
     const response = await downloadModel({
-      model_name: selectedModel.value.name
+      model_name: selectedModel.value
     });
     if ("message" in response) {
       ElMessage.success(response.message);
@@ -399,13 +403,29 @@ const confirmModelSelection = async () => {
 };
 
 const handleSelectionChange = (selection: { name: string }) => {
-  selectedModel.value = selection;
+  selectedModel.value = selection.name;
   console.log(selectedModel.value);
 };
 
 const showModelPerformance = async () => {
+  if (!selectedModel.value) {
+    ElMessage.error("请先选择模型");
+    return;
+  }
+
+  // 重置性能数据
+  mse.value = null;
+  r2.value = null;
+  modelImage.value = null;
+
+  const data = {
+    model_name: selectedModel.value,
+    input_file: inputFile.value?.name || "",
+    output_file: outputFile.value?.name || ""
+  };
+
   try {
-    const response = await evaluateModel();
+    const response = await evaluateModel(data);
     if ("mse" in response && "r2" in response && "image" in response) {
       mse.value = response.mse;
       r2.value = response.r2;
@@ -425,10 +445,10 @@ const handleAlgorithmSelection = async () => {
   }
 
   const data = {
-    model_name: selectedModel.value.name,
+    model_name: selectedModel.value,
     input_file: inputFile.value?.name || "",
     output_file: outputFile.value?.name || "",
-    number_key_parameters: 10 // 根据需要设置   TODO: 后续可增加参数设置
+    number_key_parameters: 10 // TODO: 后续可增加参数设置
   };
 
   try {
