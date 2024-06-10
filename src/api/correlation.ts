@@ -44,10 +44,15 @@ export type ModelEvaluationResult =
   | { error: string };
 
 /** 模型评估 */
-export const evaluateModel = () => {
+export const evaluateModel = (data: {
+  input_file: string;
+  output_file: string;
+  n_estimators?: number;
+}) => {
   return http.request<ModelEvaluationResult>(
     "post",
-    "http://127.0.0.1:5005/parameter_extraction/model_evaluation"
+    "http://127.0.0.1:5005/parameter_extraction/model_evaluation",
+    { data }
   );
 };
 
