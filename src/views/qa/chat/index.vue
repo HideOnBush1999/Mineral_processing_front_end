@@ -176,9 +176,11 @@ const toggleModel = async () => {
     if (modelActive.value) {
       await terminateModel();
       modelActive.value = false;
+      sessionStorage.setItem("modelActive", "false"); // 保存状态为 false
     } else {
       await createModel();
       modelActive.value = true;
+      sessionStorage.setItem("modelActive", "true"); // 保存状态为 true
     }
   } catch (error) {
     alert(`操作失败: ${error.message}`);
@@ -189,6 +191,12 @@ const toggleModel = async () => {
 
 onMounted(() => {
   messagesContainer.value = document.querySelector(".messages");
+  const savedModelState = sessionStorage.getItem("modelActive");
+  if (savedModelState === "true") {
+    modelActive.value = true; // 从 SessionStorage 中读取状态并设置
+  } else {
+    modelActive.value = false; // 默认状态为 false
+  }
 });
 </script>
 
