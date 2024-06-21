@@ -363,6 +363,7 @@ export default {
 .title {
   display: flex;
   align-items: center;
+  margin-top: 20px;
   margin-bottom: 20px;
 }
 
