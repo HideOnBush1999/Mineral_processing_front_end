@@ -58,7 +58,7 @@
             >
             <el-button
               @click="downloadModel(scope.row.name)"
-              type="info"
+              type="default"
               size="small"
               >下载</el-button
             >
