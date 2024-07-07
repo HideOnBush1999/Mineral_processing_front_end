@@ -33,6 +33,7 @@ const { layout } = useLayout();
 const isMobile = deviceDetection();
 const pureSetting = useSettingStoreHook();
 const { $storage } = useGlobal<GlobalPropertiesApi>();
+const showTag = ref(false); // 默认不显示 tag
 
 const set: setType = reactive({
   sidebar: computed(() => {
@@ -140,7 +141,7 @@ const layoutHeader = defineComponent({
           !pureSetting.hiddenSideBar && layout.value.includes("horizontal")
             ? h(Horizontal)
             : null,
-          h(tag)
+          showTag.value ? h(tag) : null
         ]
       }
     );

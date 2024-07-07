@@ -1,7 +1,9 @@
+const Layout = () => import("@/layout/index.vue");
+
 export default {
-  path: "/multi-layer",
+  path: "/",
   redirect: "/multi-layer/modeling",
-  component: () => import("@/views/multi-layer/modeling/index.vue"),
+  component: Layout,
   meta: {
     icon: "lollipop",
     title: "多层建模",
