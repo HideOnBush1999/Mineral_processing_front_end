@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from "vue";
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { chat, createModel, terminateModel } from "@/api/qa";
 import io from "socket.io-client";
 const streamingContent = ref("");
@@ -90,11 +90,11 @@ const socket = io("http://127.0.0.1:5005/qa", {
 });
 
 socket.on("connect", () => {
-  console.log("WebSocket connected");
+  console.log("WebSocket connected qa");
 });
 
 socket.on("connect_error", error => {
-  console.error("WebSocket connection error:", error);
+  console.error("WebSocket connection qa error:", error);
 });
 
 const sendMessage = async () => {
@@ -197,6 +197,10 @@ onMounted(() => {
   } else {
     modelActive.value = false; // 默认状态为 false
   }
+});
+
+onUnmounted(() => {
+  socket.close();
 });
 </script>
 
