@@ -1,155 +1,167 @@
 <template>
   <div class="container">
-    <div class="title">
-      <el-icon style="font-size: 30px"><Setting /></el-icon>
-      <h1>三元组管理</h1>
-    </div>
-    <div class="search-container">
-      <el-input
-        v-model="keyword"
-        placeholder="输入关键词搜索"
-        @input="searchTriples"
-        clearable
-        class="search-input"
-        style="width: 300px"
-      />
-      <el-button @click="searchTriples" type="primary">搜索</el-button>
-      <el-button @click="openAddDialog" type="success">新增</el-button>
-    </div>
-    <el-table :data="triples" style="width: 100%" stripe>
-      <el-table-column prop="subject" label="主体">
-        <template #default="scope">
-          <el-tooltip
-            class="item"
-            effect="dark"
-            :content="scope.row.subject"
-            placement="top"
-          >
-            <span class="ellipsis">{{ scope.row.subject }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column prop="relation" label="关系">
-        <template #default="scope">
-          <el-tooltip
-            class="item"
-            effect="dark"
-            :content="scope.row.relation"
-            placement="top"
-          >
-            <span class="ellipsis">{{ scope.row.relation }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column prop="object" label="客体">
-        <template #default="scope">
-          <el-tooltip
-            class="item"
-            effect="dark"
-            :content="scope.row.object"
-            placement="top"
-          >
-            <span class="ellipsis">{{ scope.row.object }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作">
-        <template #default="scope">
-          <template v-if="!scope.row.is_empty">
-            <el-button
-              @click="openUpdateDialog(scope.row)"
-              type="primary"
-              size="small"
-              >修改</el-button
-            >
-            <el-button
-              @click="confirmDelete(scope.row)"
-              type="danger"
-              size="small"
-              >删除</el-button
-            >
-          </template>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination">
-      <el-pagination
-        @current-change="handlePageChange"
-        :current-page="page"
-        :page-size="limit"
-        layout="prev, pager, next"
-        :total="total"
-      />
-      <div class="jump-to-page">
-        <el-input
-          v-model="goToPage"
-          placeholder="跳转到页"
-          type="number"
-          style="width: 100px; margin-left: 10px"
-          @keyup.enter="goToPageNumber"
-        />
-        <el-button @click="goToPageNumber">跳转</el-button>
+    <el-card class="management-card">
+      <div class="title">
+        <el-icon style="font-size: 30px"><Setting /></el-icon>
+        <h1>三元组管理</h1>
       </div>
-    </div>
-    <!-- 删除确认对话框 -->
-    <el-dialog
-      title="确认删除"
-      v-model="deleteDialogVisible"
-      width="30%"
-      @close="resetDeleteDialog"
-    >
-      <span>确认要删除这个三元组吗？</span>
-      <template #footer>
-        <el-button @click="deleteDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="deleteTraidConfirm">确认</el-button>
-      </template>
-    </el-dialog>
-    <!-- 修改对话框 -->
-    <el-dialog
-      title="修改三元组"
-      v-model="updateDialogVisible"
-      width="50%"
-      @close="resetUpdateDialog"
-    >
-      <el-form :model="updateForm">
-        <el-form-item label="主体" :label-width="formLabelWidth">
-          <el-input v-model="updateForm.new_subject" />
-        </el-form-item>
-        <el-form-item label="关系" :label-width="formLabelWidth">
-          <el-input v-model="updateForm.new_relation" />
-        </el-form-item>
-        <el-form-item label="客体" :label-width="formLabelWidth">
-          <el-input v-model="updateForm.new_object" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="updateDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="updateTraidConfirm">确认</el-button>
-      </template>
-    </el-dialog>
-    <!-- 新增对话框 -->
-    <el-dialog
-      title="新增三元组"
-      v-model="addDialogVisible"
-      width="50%"
-      @close="resetAddDialog"
-    >
-      <el-form :model="addForm">
-        <el-form-item label="主体" :label-width="formLabelWidth">
-          <el-input v-model="addForm.subject" />
-        </el-form-item>
-        <el-form-item label="关系" :label-width="formLabelWidth">
-          <el-input v-model="addForm.relation" />
-        </el-form-item>
-        <el-form-item label="客体" :label-width="formLabelWidth">
-          <el-input v-model="addForm.object" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="addTraidConfirm">确认</el-button>
-      </template>
-    </el-dialog>
+      <div class="search-container">
+        <el-input
+          v-model="keyword"
+          placeholder="输入关键词搜索"
+          @input="searchTriples"
+          clearable
+          class="search-input"
+          style="width: 300px"
+        />
+        <el-button @click="searchTriples" type="primary" plain icon="Search"
+          >搜索</el-button
+        >
+        <el-button @click="openAddDialog" type="success" plain icon="Plus"
+          >新增</el-button
+        >
+      </div>
+      <el-table :data="triples" style="width: 100%" stripe>
+        <el-table-column prop="subject" label="主体">
+          <template #default="scope">
+            <el-tooltip
+              class="item"
+              effect="dark"
+              :content="scope.row.subject"
+              placement="top"
+            >
+              <span class="ellipsis">{{ scope.row.subject }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="relation" label="关系">
+          <template #default="scope">
+            <el-tooltip
+              class="item"
+              effect="dark"
+              :content="scope.row.relation"
+              placement="top"
+            >
+              <span class="ellipsis">{{ scope.row.relation }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="object" label="客体">
+          <template #default="scope">
+            <el-tooltip
+              class="item"
+              effect="dark"
+              :content="scope.row.object"
+              placement="top"
+            >
+              <span class="ellipsis">{{ scope.row.object }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作">
+          <template #default="scope">
+            <template v-if="!scope.row.is_empty">
+              <el-button
+                @click="openUpdateDialog(scope.row)"
+                type="primary"
+                size="small"
+                plain
+                icon="Edit"
+                >修改</el-button
+              >
+              <el-button
+                @click="confirmDelete(scope.row)"
+                type="danger"
+                size="small"
+                plain
+                icon="Delete"
+                >删除</el-button
+              >
+            </template>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="pagination">
+        <el-pagination
+          @current-change="handlePageChange"
+          :current-page="page"
+          :page-size="limit"
+          layout="prev, pager, next"
+          :total="total"
+        />
+        <div class="jump-to-page">
+          <el-input
+            v-model="goToPage"
+            placeholder="跳转到页"
+            type="number"
+            style="width: 100px; margin-left: 10px"
+            @keyup.enter="goToPageNumber"
+          />
+          <el-button @click="goToPageNumber" plain icon="Location"
+            >跳转</el-button
+          >
+        </div>
+      </div>
+      <!-- 删除确认对话框 -->
+      <el-dialog
+        title="确认删除"
+        v-model="deleteDialogVisible"
+        width="30%"
+        @close="resetDeleteDialog"
+      >
+        <span>确认要删除这个三元组吗？</span>
+        <template #footer>
+          <el-button @click="deleteDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="deleteTraidConfirm">确认</el-button>
+        </template>
+      </el-dialog>
+      <!-- 修改对话框 -->
+      <el-dialog
+        title="修改三元组"
+        v-model="updateDialogVisible"
+        width="50%"
+        @close="resetUpdateDialog"
+      >
+        <el-form :model="updateForm">
+          <el-form-item label="主体" :label-width="formLabelWidth">
+            <el-input v-model="updateForm.new_subject" />
+          </el-form-item>
+          <el-form-item label="关系" :label-width="formLabelWidth">
+            <el-input v-model="updateForm.new_relation" />
+          </el-form-item>
+          <el-form-item label="客体" :label-width="formLabelWidth">
+            <el-input v-model="updateForm.new_object" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="updateDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="updateTraidConfirm">确认</el-button>
+        </template>
+      </el-dialog>
+      <!-- 新增对话框 -->
+      <el-dialog
+        title="新增三元组"
+        v-model="addDialogVisible"
+        width="50%"
+        @close="resetAddDialog"
+      >
+        <el-form :model="addForm">
+          <el-form-item label="主体" :label-width="formLabelWidth">
+            <el-input v-model="addForm.subject" />
+          </el-form-item>
+          <el-form-item label="关系" :label-width="formLabelWidth">
+            <el-input v-model="addForm.relation" />
+          </el-form-item>
+          <el-form-item label="客体" :label-width="formLabelWidth">
+            <el-input v-model="addForm.object" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="addDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="addTraidConfirm">确认</el-button>
+        </template>
+      </el-dialog>
+    </el-card>
   </div>
 </template>
 
@@ -356,28 +368,34 @@ export default {
 
 <style scoped>
 .container {
-  width: 100%;
+  width: 90%;
+  padding-top: 20px;
   margin: 0 auto;
+}
+
+.management-card {
+  padding: 20px;
 }
 
 .title {
   display: flex;
   align-items: center;
-  margin-top: 20px;
   margin-bottom: 20px;
+  color: #409eff;
 }
 
 .title el-icon {
-  margin-right: 10px;
+  margin-right: 40px; /* 增加间隔 */
 }
 
 .search-container {
-  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* 改为右对齐 */
   margin-bottom: 20px;
 }
 
 .search-input {
-  flex-grow: 1;
   margin-right: 10px;
 }
 
@@ -400,5 +418,10 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 可选：移除表格行悬停时的阴影效果 */
+.el-table .el-table__row:hover {
+  box-shadow: none !important;
 }
 </style>

@@ -10,7 +10,7 @@
           <span class="section-title">磨煤机结构</span>
         </div>
         <div class="image-container">
-          <img src="@/assets/structure.png" alt="Structure" />
+          <img src="@/assets/structure_new.jpg" alt="Structure" />
         </div>
       </div>
     </div>

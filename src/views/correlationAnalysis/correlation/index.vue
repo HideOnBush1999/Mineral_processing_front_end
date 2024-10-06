@@ -208,7 +208,7 @@ onMounted(() => {
   height: 80vh;
   padding: 20px;
   overflow: hidden; /* Ensure content stays within one page */
-  background-color: #2d7dbc;
+  background-color: #64afe9;
 }
 
 .left {

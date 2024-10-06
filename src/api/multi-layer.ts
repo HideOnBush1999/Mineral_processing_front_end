@@ -37,15 +37,22 @@ export const fileUploadInput = (data: FormData) => {
 
 /** 在线训练 */
 export const onlineTrain = (
-  dataset_name: string,
-  module_name: string,
-  tree_num: number
+  dataset_name,
+  module_name,
+  params // 参数对象
 ) => {
-  return http.request<OnlineTrainResult>(
+  return http.request(
     "post",
     "http://127.0.0.1:5005/multi_layer_modeling/online_train",
     {
-      data: { dataset_name, module_name, tree_num }
+      data: {
+        dataset_name,
+        module_name,
+        n_estimators: params.n_estimators,
+        max_depth: params.max_depth,
+        min_samples_split: params.min_samples_split,
+        min_samples_leaf: params.min_samples_leaf
+      }
     }
   );
 };

@@ -63,7 +63,7 @@
         <thead>
           <tr>
             <th style="padding: 8px; border: 1px solid #ccc">模块</th>
-            <th style="padding: 8px; border: 1px solid #ccc">决策树数量</th>
+            <th style="padding: 8px; border: 1px solid #ccc">参数设置</th>
             <th style="padding: 8px; border: 1px solid #ccc">在线训练</th>
             <th style="padding: 8px; border: 1px solid #ccc">模型选择</th>
             <th style="padding: 8px; border: 1px solid #ccc">模型展示</th>
@@ -77,18 +77,18 @@
               {{ module.name }}
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
-              <el-input-number
-                v-model="module.nEstimators"
-                :min="10"
-                :max="1000"
-                label="n_estimators"
-                id="n_estimators"
-              />
+              <el-button
+                type="primary"
+                plain
+                @click="openParameterDialog(module)"
+              >
+                设置参数
+              </el-button>
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
-              <el-button type="primary" @click="trainModel(module)"
-                >在线训练</el-button
-              >
+              <el-button type="primary" plain @click="trainModel(module)">
+                在线训练
+              </el-button>
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
               <el-select
@@ -104,24 +104,75 @@
               </el-select>
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
-              <el-button type="primary" @click="showModel(module)"
-                >模型展示</el-button
-              >
+              <el-button type="primary" plain @click="showModel(module)">
+                模型展示
+              </el-button>
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
-              <el-button type="primary" @click="optimizeModel(module)"
-                >优化求解</el-button
-              >
+              <el-button type="primary" plain @click="optimizeModel(module)">
+                优化求解
+              </el-button>
             </td>
             <td style="padding: 8px; border: 1px solid #ccc">
-              <el-button type="primary" @click="getOptimizaResult(module)"
-                >求解结果</el-button
+              <el-button
+                type="primary"
+                plain
+                @click="getOptimizaResult(module)"
               >
+                求解结果
+              </el-button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- 参数设置弹窗 -->
+    <el-dialog v-model="showParameterDialog" title="设置模型参数" width="40%">
+      <div class="dialog-content">
+        <el-form :model="tempParams" label-width="120px">
+          <el-form-item label="决策树数量">
+            <el-input-number
+              v-model="tempParams.n_estimators"
+              :min="10"
+              :max="1000"
+              label="n_estimators"
+            />
+          </el-form-item>
+          <el-form-item label="树的最大深度">
+            <el-input-number
+              v-model="tempParams.max_depth"
+              :min="1"
+              :step="1"
+              placeholder="不限制"
+              :formatter="value => (value === 0 ? 'None' : value)"
+              :parser="value => (value === 'None' ? null : value)"
+              controls-position="right"
+            />
+          </el-form-item>
+          <el-form-item label="最小样本分裂数">
+            <el-input-number
+              v-model="tempParams.min_samples_split"
+              :min="2"
+              :step="1"
+              label="min_samples_split"
+            />
+          </el-form-item>
+          <el-form-item label="最小叶子节点数">
+            <el-input-number
+              v-model="tempParams.min_samples_leaf"
+              :min="1"
+              :step="1"
+              label="min_samples_leaf"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template v-slot:footer>
+        <el-button @click="showParameterDialog = false">取消</el-button>
+        <el-button type="primary" @click="saveParameters">保存</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 模型展示结果弹窗 -->
     <el-dialog v-model="showModelDialog" title="模型展示结果" width="30%">
@@ -137,9 +188,9 @@
       </div>
       <template v-slot:footer>
         <div class="dialog-footer">
-          <el-button type="primary" @click="showModelDialog = false"
-            >关闭</el-button
-          >
+          <el-button type="primary" @click="showModelDialog = false">
+            关闭
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -167,9 +218,9 @@
       </div>
       <template v-slot:footer>
         <div class="dialog-footer">
-          <el-button type="primary" @click="showOptimizationDialog = false"
-            >关闭</el-button
-          >
+          <el-button type="primary" @click="showOptimizationDialog = false">
+            关闭
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -191,10 +242,14 @@ import {
 const selectedInputFile = ref(null);
 const selectedOutputFile = ref(null);
 
+// 更新模块数据结构，添加新的参数
 const modules = ref([
   {
     name: "给煤机",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -203,6 +258,9 @@ const modules = ref([
   {
     name: "给风机",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -211,6 +269,9 @@ const modules = ref([
   {
     name: "磨煤",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -219,6 +280,9 @@ const modules = ref([
   {
     name: "锅炉进口空预器",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -227,6 +291,9 @@ const modules = ref([
   {
     name: "给水系统",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -235,6 +302,9 @@ const modules = ref([
   {
     name: "锅炉燃烧",
     nEstimators: 100,
+    maxDepth: null,
+    minSamplesSplit: 2,
+    minSamplesLeaf: 1,
     models: [],
     selectedModel: "",
     datasetName: "",
@@ -247,6 +317,38 @@ const modelResult = ref({ mse: 0, r2: 0 });
 
 const showOptimizationDialog = ref(false);
 const optimizationResult = ref({ state: "", status: "", result: "" });
+
+// 新增：参数设置弹窗相关状态和方法
+const showParameterDialog = ref(false);
+const currentModule = ref(null);
+const tempParams = ref({
+  n_estimators: 100,
+  max_depth: null,
+  min_samples_split: 2,
+  min_samples_leaf: 1
+});
+
+const openParameterDialog = module => {
+  currentModule.value = module;
+  tempParams.value = {
+    n_estimators: module.nEstimators,
+    max_depth: module.maxDepth,
+    min_samples_split: module.minSamplesSplit,
+    min_samples_leaf: module.minSamplesLeaf
+  };
+  showParameterDialog.value = true;
+};
+
+const saveParameters = () => {
+  if (currentModule.value) {
+    currentModule.value.nEstimators = tempParams.value.n_estimators;
+    currentModule.value.maxDepth = tempParams.value.max_depth;
+    currentModule.value.minSamplesSplit = tempParams.value.min_samples_split;
+    currentModule.value.minSamplesLeaf = tempParams.value.min_samples_leaf;
+    ElMessage.success("参数已保存");
+    showParameterDialog.value = false;
+  }
+};
 
 const handleInputFileUpload = event => {
   selectedInputFile.value = event.target.files[0];
@@ -325,6 +427,7 @@ onMounted(() => {
   });
 });
 
+// 修改后的训练模型函数，使用新的参数
 const trainModel = async module => {
   try {
     if (module.datasetName === "") {
@@ -332,14 +435,18 @@ const trainModel = async module => {
       return;
     }
     ElMessage.info("开始训练模型，请稍后...");
-    console.log(module.datasetName);
-    console.log(module.name);
-    console.log(module.nEstimators);
-    const response = await onlineTrain(
-      module.datasetName,
-      module.name,
-      module.nEstimators
-    );
+    console.log("训练参数:", {
+      n_estimators: module.nEstimators,
+      max_depth: module.maxDepth,
+      min_samples_split: module.minSamplesSplit,
+      min_samples_leaf: module.minSamplesLeaf
+    });
+    const response = await onlineTrain(module.datasetName, module.name, {
+      n_estimators: module.nEstimators,
+      max_depth: module.maxDepth,
+      min_samples_split: module.minSamplesSplit,
+      min_samples_leaf: module.minSamplesLeaf
+    });
     ElMessage.success(response.message);
 
     // 更新模型列表
@@ -421,7 +528,7 @@ const getOptimizaResult = async module => {
   height: 80vh;
   padding: 20px; /* 内边距  内容和边框之间的空间 */
   overflow: hidden; /* Ensure content stays within one page */
-  background-color: #2d7dbc;
+  background-color: #64afe9;
 }
 
 .top-container {
@@ -512,7 +619,8 @@ const getOptimizaResult = async module => {
 .dialog-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: center; /* 水平居中 */
+  justify-content: center; /* 垂直居中 */
   padding: 10px;
   font-size: 16px;
   background: #f9f9f9;

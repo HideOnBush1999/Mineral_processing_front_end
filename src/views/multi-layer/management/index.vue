@@ -1,91 +1,104 @@
 <template>
   <div class="container">
-    <div class="title">
-      <el-icon style="font-size: 30px"><Setting /></el-icon>
-      <h1>模型管理</h1>
-    </div>
-    <div class="search-container">
-      <el-input
-        v-model="keyword"
-        placeholder="输入关键词搜索"
-        @input="searchModels"
-        clearable
-        class="search-input"
-        style="width: 300px"
-      />
-      <el-button @click="searchModels" type="primary">搜索</el-button>
-      <el-button @click="openAddDialog" type="success">新增</el-button>
-    </div>
-    <el-table :data="models" style="width: 100%" stripe>
-      <el-table-column prop="name" label="模型名称">
-        <template #default="scope">
-          <el-tooltip
-            class="item"
-            effect="dark"
-            :content="scope.row.name"
-            placement="top"
-          >
-            <span class="ellipsis">{{ scope.row.name }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column prop="size" label="模型大小">
-        <template #default="scope">
-          <el-tooltip
-            class="item"
-            effect="dark"
-            :content="scope.row.size"
-            placement="top"
-          >
-            <span class="ellipsis">{{ scope.row.size }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作">
-        <template #default="scope">
-          <template v-if="scope.row.name">
-            <el-button
-              @click="openUpdateDialog(scope.row)"
-              type="primary"
-              size="small"
-              >修改</el-button
-            >
-            <el-button
-              @click="confirmDelete(scope.row)"
-              type="danger"
-              size="small"
-              >删除</el-button
-            >
-            <el-button
-              @click="downloadModel(scope.row.name)"
-              type="default"
-              size="small"
-              >下载</el-button
-            >
-          </template>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination">
-      <el-pagination
-        @current-change="handlePageChange"
-        :current-page="page"
-        :page-size="limit"
-        layout="prev, pager, next"
-        :total="total"
-      />
-      <div class="jump-to-page">
-        <el-input
-          v-model="goToPage"
-          placeholder="跳转到页"
-          type="number"
-          style="width: 100px; margin-left: 10px"
-          @keyup.enter="goToPageNumber"
-        />
-        <el-button @click="goToPageNumber">跳转</el-button>
+    <el-card class="management-card">
+      <div class="title">
+        <el-icon style="font-size: 30px"><Setting /></el-icon>
+        <h1>模型管理</h1>
       </div>
-    </div>
-    <!-- 删除确认对话框 -->
+      <div class="search-container">
+        <el-input
+          v-model="keyword"
+          placeholder="输入关键词搜索"
+          @input="searchModels"
+          clearable
+          class="search-input"
+          style="width: 300px"
+        />
+        <el-button @click="searchModels" type="primary" plain icon="Search"
+          >搜索</el-button
+        >
+        <el-button @click="openAddDialog" type="success" plain icon="Plus"
+          >新增</el-button
+        >
+      </div>
+      <el-table :data="models" style="width: 100%" stripe>
+        <el-table-column prop="name" label="模型名称">
+          <template #default="scope">
+            <el-tooltip
+              class="item"
+              effect="dark"
+              :content="scope.row.name"
+              placement="top"
+            >
+              <span class="ellipsis">{{ scope.row.name }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="size" label="模型大小">
+          <template #default="scope">
+            <el-tooltip
+              class="item"
+              effect="dark"
+              :content="scope.row.size"
+              placement="top"
+            >
+              <span class="ellipsis">{{ scope.row.size }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作">
+          <template #default="scope">
+            <template v-if="scope.row.name">
+              <el-button
+                @click="openUpdateDialog(scope.row)"
+                type="primary"
+                size="small"
+                plain
+                icon="Edit"
+                >修改</el-button
+              >
+              <el-button
+                @click="confirmDelete(scope.row)"
+                type="danger"
+                size="small"
+                plain
+                icon="Delete"
+                >删除</el-button
+              >
+              <el-button
+                @click="downloadModel(scope.row.name)"
+                type="default"
+                size="small"
+                plain
+                icon="Download"
+                >下载</el-button
+              >
+            </template>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="pagination">
+        <el-pagination
+          @current-change="handlePageChange"
+          :current-page="page"
+          :page-size="limit"
+          layout="prev, pager, next"
+          :total="total"
+        />
+        <div class="jump-to-page">
+          <el-input
+            v-model="goToPage"
+            placeholder="跳转到页"
+            type="number"
+            style="width: 100px; margin-left: 10px"
+            @keyup.enter="goToPageNumber"
+          />
+          <el-button @click="goToPageNumber" plain icon="Location"
+            >跳转</el-button
+          >
+        </div>
+      </div>
+    </el-card>
     <el-dialog
       title="确认删除"
       v-model="deleteDialogVisible"
@@ -374,28 +387,35 @@ export default {
 
 <style scoped>
 .container {
-  width: 100%;
+  width: 90%;
+  padding-top: 20px;
   margin: 0 auto;
+}
+
+.management-card {
+  padding: 20px;
+  margin-left: 80px;
 }
 
 .title {
   display: flex;
   align-items: center;
-  margin-top: 20px;
   margin-bottom: 20px;
+  color: #409eff;
 }
 
 .title el-icon {
-  margin-right: 10px;
+  margin-right: 40px; /* 增加间隔 */
 }
 
 .search-container {
-  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* 改为右对齐 */
   margin-bottom: 20px;
 }
 
 .search-input {
-  flex-grow: 1;
   margin-right: 10px;
 }
 
