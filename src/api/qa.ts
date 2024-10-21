@@ -116,3 +116,17 @@ export const deleteTraid = (data: Triple) => {
     }
   );
 };
+
+
+/** 新增接口：获取所有三元组 */
+export type GetAllTriplesResult = {
+  data: Triple[];
+};
+
+/** 获取所有三元组 */
+export const getAllTraids = () => {
+  return http.request<GetAllTriplesResult>(
+    "get",
+    "http://127.0.0.1:5005/traid/get_all_traids"
+  );
+};

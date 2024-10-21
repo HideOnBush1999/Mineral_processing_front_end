@@ -14,12 +14,20 @@
           class="search-input"
           style="width: 300px"
         />
-        <el-button @click="searchTriples" type="primary" plain icon="Search"
-          >搜索</el-button
-        >
-        <el-button @click="openAddDialog" type="success" plain icon="Plus"
-          >新增</el-button
-        >
+        <el-button @click="searchTriples" type="primary" plain icon="Search">
+          搜索
+        </el-button>
+        <el-button @click="openAddDialog" type="success" plain icon="Plus">
+          新增
+        </el-button>
+        <!-- 3D展示按钮 -->
+        <el-button @click="openDrawer" type="info" plain icon="Eye">
+          3D展示
+        </el-button>
+        <!-- 2D展示按钮 -->
+        <el-button @click="open2DDrawer" type="info" plain icon="Eye">
+          2D展示
+        </el-button>
       </div>
       <el-table :data="triples" style="width: 100%" stripe>
         <el-table-column prop="subject" label="主体">
@@ -67,16 +75,18 @@
                 size="small"
                 plain
                 icon="Edit"
-                >修改</el-button
               >
+                修改
+              </el-button>
               <el-button
                 @click="confirmDelete(scope.row)"
                 type="danger"
                 size="small"
                 plain
                 icon="Delete"
-                >删除</el-button
               >
+                删除
+              </el-button>
             </template>
           </template>
         </el-table-column>
@@ -97,11 +107,12 @@
             style="width: 100px; margin-left: 10px"
             @keyup.enter="goToPageNumber"
           />
-          <el-button @click="goToPageNumber" plain icon="Location"
-            >跳转</el-button
-          >
+          <el-button @click="goToPageNumber" plain icon="Location">
+            跳转
+          </el-button>
         </div>
       </div>
+
       <!-- 删除确认对话框 -->
       <el-dialog
         title="确认删除"
@@ -115,6 +126,7 @@
           <el-button type="primary" @click="deleteTraidConfirm">确认</el-button>
         </template>
       </el-dialog>
+
       <!-- 修改对话框 -->
       <el-dialog
         title="修改三元组"
@@ -138,6 +150,7 @@
           <el-button type="primary" @click="updateTraidConfirm">确认</el-button>
         </template>
       </el-dialog>
+
       <!-- 新增对话框 -->
       <el-dialog
         title="新增三元组"
@@ -161,20 +174,52 @@
           <el-button type="primary" @click="addTraidConfirm">确认</el-button>
         </template>
       </el-dialog>
+
+      <!-- 3D知识图谱展示抽屉 -->
+      <el-drawer
+        title="三元组知识图谱展示"
+        v-model="drawerVisible"
+        size="80%"
+        direction="rtl"
+        :before-close="handleDrawerClose"
+      >
+        <div ref="graphContainer" class="graph-container"></div>
+        <template #footer>
+          <el-button @click="drawerVisible = false">关闭</el-button>
+        </template>
+      </el-drawer>
+
+      <!-- 2D知识图谱展示抽屉 -->
+      <el-drawer
+        title="三元组知识图谱2D展示"
+        v-model="drawer2DVisible"
+        size="80%"
+        direction="rtl"
+        :before-close="handle2DDrawerClose"
+      >
+        <div ref="graph2DContainer" class="graph-container"></div>
+        <template #footer>
+          <el-button @click="drawer2DVisible = false">关闭</el-button>
+        </template>
+      </el-drawer>
     </el-card>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch, nextTick } from "vue";
 import {
   getTraids,
   searchTraid,
   updateTraid,
   deleteTraid,
-  addTraid
+  addTraid,
+  getAllTraids
 } from "@/api/qa";
 import { ElMessage } from "element-plus";
+import ForceGraph3D from "3d-force-graph";
+import ForceGraph2D from "force-graph"; // 改为明确的名称
+import * as d3 from "d3"; // 引入d3库
 
 export default {
   setup() {
@@ -188,6 +233,10 @@ export default {
     const deleteDialogVisible = ref(false);
     const updateDialogVisible = ref(false);
     const addDialogVisible = ref(false);
+
+    // 抽屉可见性变量
+    const drawerVisible = ref(false);
+    const drawer2DVisible = ref(false); // 新增的2D抽屉可见性变量
 
     const deleteForm = ref({});
     const updateForm = ref({
@@ -205,6 +254,12 @@ export default {
     });
 
     const formLabelWidth = "80px";
+
+    const graphContainer = ref(null);
+    let fg = null;
+
+    const graph2DContainer = ref(null); // 新增的2D图谱容器
+    let fg2D = null;
 
     const fetchTriples = async () => {
       try {
@@ -307,6 +362,252 @@ export default {
       }
     };
 
+    const openDrawer = () => {
+      drawerVisible.value = true;
+    };
+
+    const handleDrawerClose = () => {
+      if (fg) {
+        fg.scene().dispose();
+        fg = null;
+      }
+    };
+
+    const open2DDrawer = () => {
+      drawer2DVisible.value = true;
+    };
+
+    const handle2DDrawerClose = () => {
+      if (fg2D) {
+        fg2D.pauseAnimation();
+        fg2D = null;
+      }
+    };
+
+    // 初始化和渲染3D力导向图
+    const renderGraph = async () => {
+      if (!graphContainer.value) return;
+
+      try {
+        // 获取所有三元组
+        const response = await getAllTraids();
+        const allTriples = response.data;
+
+        if (!Array.isArray(allTriples) || allTriples.length === 0) {
+          ElMessage.warning("没有可展示的三元组数据");
+          return;
+        }
+
+        // 准备数据
+        const data = {
+          nodes: [],
+          links: []
+        };
+
+        // 转换为 nodes 和 links
+        const nodeSet = new Set();
+        allTriples.forEach(triple => {
+          nodeSet.add(triple.subject);
+          nodeSet.add(triple.object);
+          data.links.push({
+            source: triple.subject,
+            target: triple.object,
+            label: triple.relation
+          });
+        });
+
+        nodeSet.forEach(node => {
+          data.nodes.push({ id: node, name: node });
+        });
+
+        // 创建3D力导向图
+        fg = ForceGraph3D()(graphContainer.value)
+          .graphData(data)
+          .nodeAutoColorBy('id')
+          .linkDirectionalParticles(2)
+          .linkDirectionalParticleWidth(1)
+          .nodeLabel('name')
+          .linkLabel('label')
+          .onNodeHover(node => {
+            // 可选：处理节点悬停事件
+          })
+          .onLinkHover(link => {
+            // 可选：处理链接悬停事件
+          })
+          .onNodeClick(node => {
+            // 可选：处理节点点击事件
+            ElMessage.info(`点击节点：${node.name}`);
+          });
+
+        // 可选：调整相机位置
+        fg.cameraPosition(
+          { x: 0, y: 0, z: 400 }, // 相机位置
+          { x: 0, y: 0, z: 0 },   // 目标位置
+          1000                    // 动画持续时间
+        );
+      } catch (error) {
+        console.error("Failed to fetch all triples for graph:", error);
+        ElMessage.error("获取全部三元组失败");
+      }
+    };
+
+
+    const renderGraph2D = async () => {
+      if (!graph2DContainer.value) return;
+
+      try {
+        // 获取所有三元组
+        const response = await getAllTraids();
+        const allTriples = response.data;
+
+        if (!Array.isArray(allTriples) || allTriples.length === 0) {
+          ElMessage.warning("没有可展示的三元组数据");
+          return;
+        }
+
+        // 准备数据
+        const data = {
+          nodes: [],
+          links: []
+        };
+
+        const nodeSet = new Set();
+        allTriples.forEach(triple => {
+          nodeSet.add(triple.subject);
+          nodeSet.add(triple.object);
+          data.links.push({
+            source: triple.subject,
+            target: triple.object,
+            label: triple.relation,
+            distance: 100 // 或根据需要设置不同的距离
+          });
+        });
+
+        nodeSet.forEach(node => {
+          data.nodes.push({ id: node, name: node });
+        });
+
+        // 创建2D力导向图
+        fg2D = ForceGraph2D()(graph2DContainer.value)
+          .graphData(data)
+          .nodeAutoColorBy('id')
+          .nodeLabel('name')
+          .linkLabel('label')
+          .linkDirectionalArrowLength(6) // 添加箭头，长度为6
+          .linkDirectionalArrowRelPos(1) // 箭头位置在边的终点（1表示终点，0表示起点）
+          .onNodeClick(node => {
+            ElMessage.info(`点击节点：${node.name}`);
+          })
+          .nodeCanvasObject((node, ctx, globalScale) => {
+            const label = node.name;
+            const fontSize = 16 / globalScale; // 调整字体大小
+            ctx.font = `${fontSize}px Sans-Serif`;
+
+            const nodeRadius = 20; // 调整节点半径
+
+            // 准备文本，若超出则截断并添加省略号
+            let displayLabel = label;
+            const maxTextWidth = nodeRadius * 2 - 10; // 调整内边距
+            let textWidth = ctx.measureText(displayLabel).width;
+
+            if (textWidth > maxTextWidth) {
+              while (textWidth > maxTextWidth && displayLabel.length > 0) {
+                displayLabel = displayLabel.slice(0, -1);
+                textWidth = ctx.measureText(displayLabel + '...').width;
+              }
+              displayLabel += '...';
+            }
+
+            // 绘制圆圈
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node.color || 'rgba(31, 120, 180, 0.8)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.stroke();
+
+            // 绘制文本
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(displayLabel, node.x, node.y);
+          })
+          .nodePointerAreaPaint((node, color, ctx) => {
+            // 定义节点的交互区域，确保节点可拖动
+            const nodeRadius = 20; // 与绘制节点时的半径保持一致
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI, false);
+            ctx.fill();
+          })
+          .linkCanvasObjectMode(() => 'after') // 确保关系标签在绘制之后
+          .linkCanvasObject((link, ctx, globalScale) => {
+            const label = link.label;
+            if (!label) return;
+
+            const start = link.source;
+            const end = link.target;
+
+            // 计算边的中点
+            const middlePos = {
+              x: start.x + (end.x - start.x) * 0.5,
+              y: start.y + (end.y - start.y) * 0.5
+            };
+
+            const fontSize = 14 / globalScale; // 调整字体大小
+            ctx.font = `${fontSize}px Sans-Serif`;
+            ctx.fillStyle = 'red';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, middlePos.x, middlePos.y);
+          });
+
+        // 添加碰撞检测，防止节点重叠
+        fg2D.d3Force('collision', d3.forceCollide(25)); // 25 = nodeRadius (20) + 间距 (5)
+
+        // 设置链接距离
+        fg2D.d3Force('link').distance(link => {
+          return link.distance || 100; // 使用链接的 distance 属性，或默认值100
+        });
+
+        // 如果所有链接使用相同的距离，可以直接设置一个固定值
+        // fg2D.d3Force('link').distance(100);
+      } catch (error) {
+        console.error("Failed to fetch all triples for 2D graph:", error);
+        ElMessage.error("获取全部三元组失败");
+      }
+    };
+
+
+
+    // 监听3D抽屉打开事件，渲染图谱
+    watch(drawerVisible, async (newVal) => {
+      if (newVal) {
+        await nextTick();
+        await renderGraph();
+      } else {
+        // 当抽屉关闭时，销毁图谱实例
+        if (fg) {
+          fg.scene().dispose();
+          fg = null;
+        }
+      }
+    });
+
+    // 监听2D抽屉打开事件，渲染2D图谱
+    watch(drawer2DVisible, async (newVal) => {
+      if (newVal) {
+        await nextTick();
+        await renderGraph2D();
+      } else {
+        // 当抽屉关闭时，销毁图谱实例
+        if (fg2D) {
+          fg2D.pauseAnimation();
+          fg2D = null;
+        }
+      }
+    });
+
     const resetDeleteDialog = () => {
       deleteForm.value = {};
     };
@@ -344,6 +645,10 @@ export default {
       deleteDialogVisible,
       updateDialogVisible,
       addDialogVisible,
+      drawerVisible,
+      graphContainer,
+      drawer2DVisible, // 新增的2D抽屉可见性变量
+      graph2DContainer, // 新增的2D图谱容器
       deleteForm,
       updateForm,
       addForm,
@@ -358,6 +663,10 @@ export default {
       updateTraidConfirm,
       openAddDialog,
       addTraidConfirm,
+      openDrawer,
+      handleDrawerClose,
+      open2DDrawer, // 新增的打开2D抽屉的函数
+      handle2DDrawerClose, // 新增的关闭2D抽屉的函数
       resetDeleteDialog,
       resetUpdateDialog,
       resetAddDialog
@@ -423,5 +732,18 @@ export default {
 /* 可选：移除表格行悬停时的阴影效果 */
 .el-table .el-table__row:hover {
   box-shadow: none !important;
+}
+
+/* 图谱容器样式 */
+.graph-container {
+  width: 100%;
+  height: 600px; /* 根据需要调整高度 */
+}
+
+/* 确保抽屉内容滚动 */
+.el-drawer__body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 </style>
