@@ -41,7 +41,7 @@ export const onlineTrain = (
   module_name,
   params // 参数对象
 ) => {
-  return http.request(
+  return http.request<OnlineTrainResult>(
     "post",
     "http://127.0.0.1:5005/multi_layer_modeling/online_train",
     {
